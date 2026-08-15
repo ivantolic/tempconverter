@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tempconverter-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              value: tempconverter
+            - name: MYSQL_USER
+              value: tempuser
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tempconverter-secret
+                  key: MYSQL_PASSWORD
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  selector:
+    app: mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tempconverter
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tempconverter
+  template:
+    metadata:
+      labels:
+        app: tempconverter
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - tempconverter
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: tempconverter
+          image: itolicc/tempconverter:dev
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DB_USER
+              value: tempuser
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: tempconverter-secret
+                  key: MYSQL_PASSWORD
+            - name: DB_HOST
+              value: mysql
+            - name: DB_NAME
+              value: tempconverter
+            - name: STUDENT
+              value: "Ivan Tolic"
+            - name: COLLEGE
+              value: "Algebra Bernays University"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempconverter
+spec:
+  type: LoadBalancer
+  selector:
+    app: tempconverter
+  ports:
+    - port: 80
+      targetPort: 5000

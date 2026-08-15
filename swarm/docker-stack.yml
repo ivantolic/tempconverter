@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: tempconverter
+      MYSQL_USER: tempuser
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - tempconverter-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  app:
+    image: itolicc/tempconverter:dev
+    environment:
+      DB_USER: tempuser
+      DB_PASS: ${MYSQL_PASSWORD}
+      DB_HOST: mysql
+      DB_NAME: tempconverter
+      STUDENT: "Ivan Tolic"
+      COLLEGE: "Algebra Bernays University"
+    ports:
+      - target: 5000
+        published: 80
+        protocol: tcp
+        mode: ingress
+    networks:
+      - tempconverter-net
+    deploy:
+      replicas: 2
+      placement:
+        max_replicas_per_node: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  tempconverter-net:
+    driver: overlay
+
+volumes:
+  mysql_data:
