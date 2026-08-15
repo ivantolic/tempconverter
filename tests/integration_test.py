@@ -1,11 +1,13 @@
 import os
 
-os.environ["DB_USER"] = "tempuser"
-os.environ["DB_PASS"] = "TempPass1234"
-os.environ["DB_HOST"] = "127.0.0.1"
-os.environ["DB_NAME"] = "tempconverter_test"
-os.environ["STUDENT"] = "Ivan Tolic"
-os.environ["COLLEGE"] = "Algebra Bernays University"
+os.environ["DB_USER"] = os.getenv("DB_USER", "tempuser")
+os.environ["DB_HOST"] = os.getenv("DB_HOST", "127.0.0.1")
+os.environ["DB_NAME"] = os.getenv("DB_NAME", "tempconverter_test")
+os.environ["STUDENT"] = os.getenv("STUDENT", "Ivan Tolic")
+os.environ["COLLEGE"] = os.getenv("COLLEGE", "Algebra Bernays University")
+
+if not os.getenv("DB_PASS"):
+    raise RuntimeError("DB_PASS environment variable is not set")
 
 from app import app, db, Temperature
 
